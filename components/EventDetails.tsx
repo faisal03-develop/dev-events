@@ -1,15 +1,14 @@
 import React from 'react'
-import { notFound } from "next/navigation";
-import { IEvent } from "@/database";
-import { getSimilarEventsBySlug } from "@/lib/actions/event.actions";
+import {notFound} from "next/navigation";
+import {IEvent} from "@/database";
+import {getSimilarEventsBySlug} from "@/lib/actions/event.actions";
 import Image from "next/image";
 import BookEvent from "@/components/BookEvent";
 import EventCard from "@/components/EventCard";
-// import {cacheLife} from "next/cache"; // This is not a valid import
+import {cacheLife} from "next/cache";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-// --- Sub-component: EventDetailItem ---
 const EventDetailItem = ({ icon, alt, label }: { icon: string; alt: string; label: string; }) => (
     <div className="flex-row-gap-2 items-center">
         <Image src={icon} alt={alt} width={17} height={17} />
@@ -17,7 +16,6 @@ const EventDetailItem = ({ icon, alt, label }: { icon: string; alt: string; labe
     </div>
 )
 
-// --- Sub-component: EventAgenda ---
 const EventAgenda = ({ agendaItems }: { agendaItems: string[] }) => (
     <div className="agenda">
         <h2>Agenda</h2>
@@ -29,7 +27,6 @@ const EventAgenda = ({ agendaItems }: { agendaItems: string[] }) => (
     </div>
 )
 
-// --- Sub-component: EventTags ---
 const EventTags = ({ tags }: { tags: string[] }) => (
     <div className="flex flex-row gap-1.5 flex-wrap">
         {tags.map((tag) => (
@@ -38,14 +35,12 @@ const EventTags = ({ tags }: { tags: string[] }) => (
     </div>
 )
 
-// --- Main Page Component ---
-const EventDetails = async ({ params }: { params: { slug: string } }) => {
-    // 'use cache' // This is a React directive, not a string comment
-    // cacheLife('hours'); // This function does not exist in next/cache
-    
-    const { slug } = params; // Get the slug from the params object
+const EventDetails = async ({ params }: { params: Promise<string> }) => {
+    // 'use cache'
+    // cacheLife('hours');
+    const slug = await params;
 
-    let event: IEvent; // Use the IEvent type for the event
+    let event;
     try {
         const request = await fetch(`${BASE_URL}/api/events/${slug}`, {
             next: { revalidate: 60 }
@@ -71,24 +66,11 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
 
     const { description, image, overview, date, time, location, mode, agenda, audience, tags, organizer } = event;
 
-    if (!description) return notFound();
+    if(!description) return notFound();
 
     const bookings = 10;
 
-    // =================================================================
-    //_id
-    // ⬇️ **FIX FOR THE TYPE ERROR IS HERE** ⬇️
-    //
-    // 1. Get the raw Mongoose documents from your server action
-    const rawSimilarEvents = await getSimilarEventsBySlug(slug);
-    
-    // 2. Convert the Mongoose documents into plain objects.
-    // This strips all Mongoose-specific properties and makes
-    // the objects match your `IEvent[]` type.
-    const similarEvents: IEvent[] = JSON.parse(JSON.stringify(rawSimilarEvents));
-    //
-    // ⬆️ **FIX FOR THE TYPE ERROR IS HERE** ⬆️
-    // =================================================================
+    const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
 
     return (
         <section id="event">
@@ -98,7 +80,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
             </div>
 
             <div className="details">
-                {/* Left Side - Event Content */}
+                {/*    Left Side - Event Content */}
                 <div className="content">
                     <Image src={image} alt="Event Banner" width={800} height={800} className="banner" />
 
@@ -109,6 +91,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
 
                     <section className="flex-col-gap-2">
                         <h2>Event Details</h2>
+
                         <EventDetailItem icon="/icons/calendar.svg" alt="calendar" label={date} />
                         <EventDetailItem icon="/icons/clock.svg" alt="clock" label={time} />
                         <EventDetailItem icon="/icons/pin.svg" alt="pin" label={location} />
@@ -126,7 +109,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
                     <EventTags tags={tags} />
                 </div>
 
-                {/* Right Side - Booking Form */}
+                {/*    Right Side - Booking Form */}
                 <aside className="booking">
                     <div className="signup-card">
                         <h2>Book Your Spot</h2>
@@ -134,7 +117,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
                             <p className="text-sm">
                                 Join {bookings} people who have already booked their spot!
                             </p>
-                        ) : (
+                        ): (
                             <p className="text-sm">Be the first to book your spot!</p>
                         )}
 
@@ -147,8 +130,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
                 <h2>Similar Events</h2>
                 <div className="events">
                     {similarEvents.length > 0 && similarEvents.map((similarEvent: IEvent) => (
-                        // Use a unique ID for the key, not the title
-                        <EventCard key={similarEvent._id || similarEvent.slug} {...similarEvent} />
+                        <EventCard key={similarEvent.title} {...similarEvent} />
                     ))}
                 </div>
             </div>
