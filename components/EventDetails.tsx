@@ -1,12 +1,11 @@
 import React from 'react'
 import {notFound} from "next/navigation";
-import {IEvent} from "@/database"; // Assuming IEvent is exported from @/database
+import {IEvent} from "@/database";
 import {getSimilarEventsBySlug} from "@/lib/actions/event.actions";
 import Image from "next/image";
 import BookEvent from "@/components/BookEvent";
 import EventCard from "@/components/EventCard";
-// Note: 'cacheLife' is not a stable Next.js API. 'use cache' is also experimental.
-// Using fetch's 'next: { revalidate: 60 }' is the correct approach here.
+import {cacheLife} from "next/cache";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -36,16 +35,15 @@ const EventTags = ({ tags }: { tags: string[] }) => (
     </div>
 )
 
-// CORRECTED: Updated the component's props signature
-const EventDetails = async ({ params }: { params: { slug: string } }) => {
-    
-    // CORRECTED: Access the slug property from the params object
-    const { slug } = params;
+const EventDetails = async ({ params }: { params: Promise<string> }) => {
+    // 'use cache'
+    // cacheLife('hours');
+    const slug = await params;
 
-    let event: IEvent; // Assuming IEvent includes _id, slug, etc.
+    let event;
     try {
         const request = await fetch(`${BASE_URL}/api/events/${slug}`, {
-            next: { revalidate: 60 } // 60-second revalidation
+            next: { revalidate: 60 }
         });
 
         if (!request.ok) {
@@ -70,11 +68,9 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
 
     if(!description) return notFound();
 
-    const bookings = 10; // This is still hardcoded
+    const bookings = 10;
 
-    // FIXED: Convert Mongoose docs to plain objects to match IEvent[]
-    const rawSimilarEvents = await getSimilarEventsBySlug(slug);
-    const similarEvents: IEvent[] = JSON.parse(JSON.stringify(rawSimilarEvents));
+    const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
 
     return (
         <section id="event">
@@ -84,7 +80,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
             </div>
 
             <div className="details">
-                {/* Left Side - Event Content */}
+                {/*    Left Side - Event Content */}
                 <div className="content">
                     <Image src={image} alt="Event Banner" width={800} height={800} className="banner" />
 
@@ -95,6 +91,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
 
                     <section className="flex-col-gap-2">
                         <h2>Event Details</h2>
+
                         <EventDetailItem icon="/icons/calendar.svg" alt="calendar" label={date} />
                         <EventDetailItem icon="/icons/clock.svg" alt="clock" label={time} />
                         <EventDetailItem icon="/icons/pin.svg" alt="pin" label={location} />
@@ -112,7 +109,7 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
                     <EventTags tags={tags} />
                 </div>
 
-                {/* Right Side - Booking Form */}
+                {/*    Right Side - Booking Form */}
                 <aside className="booking">
                     <div className="signup-card">
                         <h2>Book Your Spot</h2>
@@ -132,9 +129,8 @@ const EventDetails = async ({ params }: { params: { slug: string } }) => {
             <div className="flex w-full flex-col gap-4 pt-20">
                 <h2>Similar Events</h2>
                 <div className="events">
-                    {/* CORRECTED: Use a more stable key like _id or slug */}
                     {similarEvents.length > 0 && similarEvents.map((similarEvent: IEvent) => (
-                        <EventCard key={similarEvent._id} {...similarEvent} />
+                        <EventCard key={similarEvent.title} {...similarEvent} />
                     ))}
                 </div>
             </div>
